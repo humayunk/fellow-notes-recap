@@ -13,6 +13,7 @@ interface Props {
 }
 
 const TABS = ["Agenda", "AI Note", "Transcript"];
+export const tabSlug = (s: string) => s.replace(/\s+/g, "-");
 
 export function Header({ meeting, theme, setTheme, tab, setTab, onWatch }: Props) {
   return (
@@ -33,12 +34,27 @@ export function Header({ meeting, theme, setTheme, tab, setTab, onWatch }: Props
           ))}
         </div>
 
-        <div className="tabs" role="tablist" aria-label="Recap views">
+        <div
+          className="tabs"
+          role="tablist"
+          aria-label="Recap views"
+          onKeyDown={(e) => {
+            if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+            e.preventDefault();
+            const i = TABS.indexOf(tab);
+            const next = e.key === "ArrowRight" ? (i + 1) % TABS.length : (i - 1 + TABS.length) % TABS.length;
+            setTab(TABS[next]);
+            document.getElementById(`tab-${tabSlug(TABS[next])}`)?.focus();
+          }}
+        >
           {TABS.map((t) => (
             <button
               key={t}
+              id={`tab-${tabSlug(t)}`}
               role="tab"
               aria-selected={tab === t}
+              aria-controls={`panel-${tabSlug(t)}`}
+              tabIndex={tab === t ? 0 : -1}
               className="tab"
               onClick={() => setTab(t)}
             >

@@ -14,9 +14,6 @@ interface Props {
   onJumpTopic: (topicId: string) => void;
 }
 
-// Desaturated steps off the violet->blue ramp. Read as data, not decoration.
-const SEG_TINTS = ["#4c4066", "#473f72", "#3f4a7a", "#39507e"];
-
 export function Ribbon({
   topics, decisions, actionItems, durationSec,
   currentSec, readingSec, playing, litSec, onJumpTopic,
@@ -33,47 +30,52 @@ export function Ribbon({
   return (
     <div className="ribbon-wrap">
       <div className="ribbon-inner">
+        {/* .ribbon is overflow-visible so marker caps + the tooltip aren't
+            clipped; only .ribbon-track clips the rounded segment fills. */}
         <div
           className={cn("ribbon", activeAny && "has-lit")}
           role="group"
-          aria-label="Meeting timeline — segments are topics, amber dots are decisions, hollow dots are action items"
+          aria-label="Meeting timeline — a visual summary of the topics, decisions, and action items listed below"
         >
-          {topics.map((t, i) => {
-            const dur = t.tEndSec - t.tStartSec;
-            const lit = hoverIdx === i || litIdx === i;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                className={cn("seg", lit && "lit")}
-                style={{ flex: `${dur} 1 20px`, background: SEG_TINTS[i % SEG_TINTS.length] }}
-                aria-label={`${t.title}, ${fmtTime(t.tStartSec)} to ${fmtTime(t.tEndSec)}`}
-                onMouseEnter={(e) => {
-                  setHoverIdx(i);
-                  const r = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
-                  const sr = e.currentTarget.getBoundingClientRect();
-                  setTip({
-                    title: t.title,
-                    range: `${fmtTime(t.tStartSec)}–${fmtTime(t.tEndSec)}`,
-                    xPct: ((sr.left + sr.width / 2 - r.left) / r.width) * 100,
-                  });
-                }}
-                onMouseLeave={() => { setHoverIdx(null); setTip(null); }}
-                onClick={() => onJumpTopic(t.id)}
-              >
-                {dur / durationSec > 0.08 && <span className="seg-label">{t.title}</span>}
-              </button>
-            );
-          })}
+          <div className="ribbon-track">
+            {topics.map((t, i) => {
+              const dur = t.tEndSec - t.tStartSec;
+              const lit = hoverIdx === i || litIdx === i;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={cn("seg", lit && "lit")}
+                  style={{ flex: `${dur} 1 0`, background: `var(--seg-${i % 4})` }}
+                  aria-label={`${t.title}, ${fmtTime(t.tStartSec)} to ${fmtTime(t.tEndSec)}`}
+                  onMouseEnter={(e) => {
+                    setHoverIdx(i);
+                    const r = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
+                    const sr = e.currentTarget.getBoundingClientRect();
+                    setTip({
+                      title: t.title,
+                      range: `${fmtTime(t.tStartSec)}–${fmtTime(t.tEndSec)}`,
+                      xPct: ((sr.left + sr.width / 2 - r.left) / r.width) * 100,
+                    });
+                  }}
+                  onMouseLeave={() => { setHoverIdx(null); setTip(null); }}
+                  onClick={() => onJumpTopic(t.id)}
+                >
+                  {dur / durationSec > 0.08 && <span className="seg-label">{t.title}</span>}
+                </button>
+              );
+            })}
+          </div>
 
+          {/* decorative markers — the Decisions / Action-items lists below are
+              the accessible source of truth, so these are aria-hidden. */}
           {decisions.map((d) => (
-            <span key={d.id} className="ribbon-dot decision" style={{ left: `${pct(d.tSec)}%` }} title={`Decision at ${fmtTime(d.tSec)}`} />
+            <span key={d.id} className="ribbon-dot decision" style={{ left: `${pct(d.tSec)}%` }} title={`Decision at ${fmtTime(d.tSec)}`} aria-hidden="true" />
           ))}
           {actionItems.map((a) => (
-            <span key={a.id} className="ribbon-dot action" style={{ left: `${pct(a.tSec)}%`, top: "72%" }} title={`Action item at ${fmtTime(a.tSec)}`} />
+            <span key={a.id} className="ribbon-dot action" style={{ left: `${pct(a.tSec)}%`, top: "72%" }} title={`Action item at ${fmtTime(a.tSec)}`} aria-hidden="true" />
           ))}
 
-          {/* reading-position marker (hollow) and playback head (solid) */}
           <span className="readhead" style={{ left: `${pct(readingSec)}%` }} aria-hidden="true" />
           {(playing || currentSec > 0) && (
             <span className="playhead" style={{ left: `${pct(currentSec)}%` }} aria-hidden="true" />

@@ -44,7 +44,7 @@ export function Topics({ topics, open, onToggle, onExpandAll, allOpen, activeTSe
                 <div className="topic-body-inner">
                   <ul className="topic-bullets">
                     {t.bullets.map((b) => (
-                      <li key={b.id} className={cn(activeTSec === b.tSec && "active")}>
+                      <li key={b.id} data-tsec={b.tSec} className={cn(activeTSec === b.tSec && "active")}>
                         <span className="dot" aria-hidden="true">•</span>
                         <span className="bl-text">
                           {b.text}

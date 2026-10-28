@@ -150,13 +150,17 @@ export function useReadingPosition(active: boolean): number {
     let raf = 0;
     const compute = () => {
       raf = 0;
-      // Reading line sits ~30% down the viewport; the active anchor is the last
-      // one that has scrolled above it (the most recent thing you're reading).
+      // Reading line sits ~30% down the viewport. The document isn't strictly
+      // chronological (summary spans the whole meeting, topics re-cover it), so
+      // we track the FURTHEST-along moment read — the max tSec among anchors
+      // scrolled above the line. Monotonic as you scroll down: never jumps back.
       const line = window.innerHeight * 0.3;
       const anchors = Array.from(document.querySelectorAll<HTMLElement>("[data-tsec]"));
       let chosen = 0;
       for (const el of anchors) {
-        if (el.getBoundingClientRect().top <= line) chosen = Number(el.dataset.tsec);
+        if (el.getBoundingClientRect().top <= line) {
+          chosen = Math.max(chosen, Number(el.dataset.tsec));
+        }
       }
       setReadingSec(chosen);
     };

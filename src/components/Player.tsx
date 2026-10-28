@@ -57,6 +57,7 @@ export function Player({ meeting, pb, followAlong, setFollowAlong }: Props) {
           onPointerDown={onGripDown}
           onPointerMove={onGripMove}
           onPointerUp={onGripUp}
+          onPointerCancel={onGripUp}
           aria-hidden="true"
         />
         <div className="pip-tiles">
@@ -84,11 +85,17 @@ export function Player({ meeting, pb, followAlong, setFollowAlong }: Props) {
           aria-valuemin={0}
           aria-valuemax={Math.round(meeting.durationSec)}
           aria-valuenow={Math.round(pb.currentSec)}
+          aria-valuetext={`${fmtTime(pb.currentSec)} of ${fmtTime(meeting.durationSec)}`}
           tabIndex={0}
           onClick={(e) => seekScrub(e.clientX)}
           onKeyDown={(e) => {
-            if (e.key === "ArrowRight") pb.seek(pb.currentSec + 10);
-            if (e.key === "ArrowLeft") pb.seek(pb.currentSec - 10);
+            const keys = ["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown", "Home", "End"];
+            if (!keys.includes(e.key)) return;
+            e.preventDefault();
+            if (e.key === "ArrowRight" || e.key === "ArrowUp") pb.seek(pb.currentSec + 10);
+            if (e.key === "ArrowLeft" || e.key === "ArrowDown") pb.seek(pb.currentSec - 10);
+            if (e.key === "Home") pb.seek(0);
+            if (e.key === "End") pb.seek(meeting.durationSec);
           }}
         >
           <div className="pip-prog" style={{ width: `${(pb.currentSec / meeting.durationSec) * 100}%` }} />

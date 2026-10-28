@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MEETING } from "./data";
 import { fmtDate, fmtTime, copyText } from "./util";
 import { useTheme, usePlayback, useTriage, useReadingPosition, useReducedMotion } from "./hooks";
@@ -39,6 +39,17 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
+  // Keep the ribbon's sticky offset matched to the real header height.
+  useEffect(() => {
+    const setH = () => {
+      const h = document.querySelector(".header")?.getBoundingClientRect().height;
+      if (h) document.documentElement.style.setProperty("--header-h", `${Math.round(h)}px`);
+    };
+    setH();
+    window.addEventListener("resize", setH);
+    return () => window.removeEventListener("resize", setH);
+  }, [loading, tab]);
+
   // Every anchor's second, for stepping and the "now playing" line.
   const anchorSecs = useMemo(() => {
     const s = new Set<number>();
@@ -63,9 +74,11 @@ export default function App() {
     el?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
   }, [followAlong, pb.playing, activeTSec, reduced]);
 
+  const toastTimer = useRef<number | null>(null);
   const flash = (msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(msg);
-    setTimeout(() => setToast(null), 2000);
+    toastTimer.current = window.setTimeout(() => setToast(null), 2000);
   };
 
   const onPlay = (sec: number) => pb.playFrom(sec);
@@ -124,7 +137,15 @@ export default function App() {
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (e.key === "?" || (e.key === "/" && e.shiftKey)) { e.preventDefault(); setShortcuts((s) => !s); return; }
       if (e.key === "Escape") { setShortcuts(false); return; }
-      if (e.key === " ") { e.preventDefault(); pb.toggle(); return; }
+      if (e.key === " ") {
+        // Let Space activate a focused control natively; only the player claims
+        // it when nothing interactive is focused.
+        const t = e.target as HTMLElement;
+        if (t.closest("button,[role=checkbox],[role=switch],[role=slider],[role=tab],a,input,textarea,select")) return;
+        e.preventDefault();
+        pb.toggle();
+        return;
+      }
       if (e.key === "]") { e.preventDefault(); pb.step(1, anchorSecs); return; }
       if (e.key === "[") { e.preventDefault(); pb.step(-1, anchorSecs); return; }
       if (e.key === "j" || e.key === "k") {
@@ -141,7 +162,9 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [pb, anchorSecs]);
+    // pb.toggle / pb.step are stable useCallbacks; depend on them, not the
+    // fresh pb object, so this doesn't re-subscribe every render.
+  }, [pb.toggle, pb.step, anchorSecs]);
 
   if (loading) {
     return (
@@ -169,7 +192,7 @@ export default function App() {
             litSec={litSec}
             onJumpTopic={onJumpTopic}
           />
-          <main className="doc">
+          <main className="doc" id="panel-AI-Note" role="tabpanel" aria-labelledby="tab-AI-Note" tabIndex={0}>
             <Digest
               decisionCount={m.decisions.length}
               actionCount={m.actionItems.length}
@@ -214,7 +237,7 @@ export default function App() {
       )}
 
       {tab === "Agenda" && (
-        <main className="doc">
+        <main className="doc" id="panel-Agenda" role="tabpanel" aria-labelledby="tab-Agenda" tabIndex={0}>
           <section className="card">
             <div className="card-head"><h2>Agenda</h2></div>
             <ol style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -229,7 +252,7 @@ export default function App() {
       )}
 
       {tab === "Transcript" && (
-        <main className="doc">
+        <main className="doc" id="panel-Transcript" role="tabpanel" aria-labelledby="tab-Transcript" tabIndex={0}>
           <section className="card">
             <div className="card-head"><h2>Transcript</h2></div>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -249,7 +272,10 @@ export default function App() {
 
       {pb.open && <Player meeting={m} pb={pb} followAlong={followAlong} setFollowAlong={setFollowAlong} />}
       {shortcuts && <ShortcutsOverlay onClose={() => setShortcuts(false)} />}
-      {toast && <div className="toast" role="status">{toast}</div>}
+
+      {/* Persistent live region so announcements aren't missed on first mount. */}
+      <div className="sr-only" role="status" aria-live="polite">{toast ?? ""}</div>
+      {toast && <div className="toast" aria-hidden="true">{toast}</div>}
     </div>
   );
 }
